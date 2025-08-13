@@ -149,8 +149,8 @@ $app->post('/categorias', function (Request $request, Response $response) use ($
         $nuevoId = $pdo->lastInsertId();
 
         $response->getBody()->write(json_encode([
-            'mensaje' => 'Producto creado correctamente',
-            'idproducto' => $nuevoId
+            'mensaje' => 'Categoria creada correctamente',
+            'idcategoria' => $nuevoId
         ]));
         return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
 
@@ -158,6 +158,45 @@ $app->post('/categorias', function (Request $request, Response $response) use ($
         $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
         return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
+});
+
+$app->delete('/categorias/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
+$id = $args['id'];
+
+if (!is_numeric($id)) {
+    $response->getBody()->write(json_encode([
+        'error' => 'Id invalido'
+    ]));
+    return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+}
+
+try {
+    $stmt = $pdo->prepare("SELECT * FROM CATEGORIAS WHERE idcategoria = :id");
+    $stmt->execute([':id' => $id]);
+    $categoria = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$categoria) {
+        $response->getBody()->write(json_encode([
+            'error' => 'Categoria no encontrada'
+        ]));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $stmt = $pdo->prepare("DELETE FROM CATEGORIAS WHERE idcategoria = :id");
+    $stmt->execute([':id' => $id]);
+
+    $response->getBody()->write(json_encode([
+        'mensaje' => 'Categoria eliminada correctamente'
+    ]));
+    return $response->withHeader('Content-Type', 'application/json');
+
+} catch (PDOException $e) {
+    $response->getBody()->write(json_encode([
+        'error' => $e->getMessage()
+    ]));
+    return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+}
+
 });
 
 
