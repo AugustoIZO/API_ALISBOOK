@@ -124,6 +124,42 @@ $app->get('/categorias', function (Request $request, Response $response) use ($p
 
 });
 
+$app->post('/categorias', function (Request $request, Response $response) use ($pdo){
+
+    $data = $request->getParsedBody();
+
+    $idCategoria   = $data['idcategoria'] ?? null;
+    $descripcion   = $data['descripcion'] ?? null;
+    $estado        = $data['estado'] ?? 'Activo';
+    $fechaRegistro = $data['fecharegistro'] ?? date('Y-m-d H:i:s');
+
+    try {
+        $sql = "INSERT INTO CATEGORIAS
+        (IDCATEGORIA, DESCRIPCION, ESTADO, FECHAREGISTRO)
+        VALUES
+        (:idcategoria, :descripcion, :estado, :fecharegistro)";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':idcategoria'   => $idCategoria,
+            ':descripcion'   => $descripcion,
+            ':estado'        => $estado,
+            ':fecharegistro' => $fechaRegistro
+        ]);
+        $nuevoId = $pdo->lastInsertId();
+
+        $response->getBody()->write(json_encode([
+            'mensaje' => 'Producto creado correctamente',
+            'idproducto' => $nuevoId
+        ]));
+        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
+
+    } catch (PDOException $e) {
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+});
+
 
 $app->setBasePath('/api_alisbook/public');
 $app->run();
