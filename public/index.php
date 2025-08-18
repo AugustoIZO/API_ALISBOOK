@@ -2,15 +2,60 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Factory\AppFactory;
+use Tuupola\Middleware\JwtAuthentication;
+use Firebase\JWT\JWT;
 
 require __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/db.php';
 
 
 $app = AppFactory::create();
-
 $app->addBodyParsingMiddleware();
 
+// Ruta de login para emitir token
+$app->post('/login', function (Request $request, Response $response) {
+    $data = $request->getParsedBody();
+    $username = $data['username'] ?? '';
+    $password = $data['password'] ?? '';
+
+    if ($username === 'user' && $password === 'password') {
+        $key = "your_secret_key";
+        $payload = [
+            "iss" => "example.com",
+            "aud" => "example.com",
+            "iat" => time(),
+            "nbf" => time(),
+            "exp" => time() + 3600,
+            "data" => [
+                "username" => $username
+            ]
+        ];
+        $token = JWT::encode($payload, $key, 'HS256');
+        $response->getBody()->write(json_encode(["token" => $token]));
+    } else {
+        $response->getBody()->write("Credenciales inválidas");
+        return $response->withStatus(401);
+    }
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
+// Middleware JWT
+$app->add(new JwtAuthentication([
+    "secret" => "your_secret_key",
+    "attribute" => "token",
+    "path" => "/api",
+    "ignore" => ["/login"],
+    "algorithm" => ["HS256"],
+    "decoded" => true
+]));
+
+// Ruta protegida
+$app->get('/api/protected', function (Request $request, Response $response) {
+    $token = $request->getAttribute('token');
+    $username = $token['data']['username'];
+    $response->getBody()->write("Hola, $username");
+    return $response;
+});
 
 $app->get('/productos', function (Request $request, Response $response) use ($pdo) {
     $stmt = $pdo->query("SELECT * FROM PRODUCTOS");
@@ -196,7 +241,6 @@ try {
     ]));
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
-
 });
 
 
