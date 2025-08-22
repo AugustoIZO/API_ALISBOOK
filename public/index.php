@@ -244,5 +244,5 @@ try {
 });
 
 
-$app->setBasePath('/api_alisbook/public');
+$app->setBasePath('/API_ALISBOOK/public');
 $app->run();

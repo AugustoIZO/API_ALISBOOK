@@ -1185,7 +1185,7 @@
             },
             "time": "2020-09-09T08:31:54+00:00",
             "type": "library",
-            "installation-source": "source",
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
                     "Tuupola\\Middleware\\": "src"
@@ -1255,7 +1255,7 @@
             },
             "time": "2021-09-14T12:46:25+00:00",
             "type": "library",
-            "installation-source": "source",
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
                     "Tuupola\\Http\\Factory\\": "src"
@@ -1331,7 +1331,7 @@
                     "dev-3.x": "3.0.x-dev"
                 }
             },
-            "installation-source": "source",
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
                     "Tuupola\\Middleware\\": "src"
