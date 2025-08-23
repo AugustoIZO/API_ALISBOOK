@@ -20,7 +20,9 @@
 -- Table structure for table `CATEGORIAS`
 --
 
-
+SELECT * FROM CATEGORIAS
+select * from PRODUCTOS
+use ALISBOOK_BD
 
 DROP TABLE IF EXISTS `CATEGORIAS`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
