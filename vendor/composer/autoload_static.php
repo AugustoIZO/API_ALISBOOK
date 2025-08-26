@@ -7,8 +7,8 @@ namespace Composer\Autoload;
 class ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea
 {
     public static $files = array (
-        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
         '253c157292f75eb38082b5acb06f3f01' => __DIR__ . '/..' . '/nikic/fast-route/src/functions.php',
+        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
@@ -56,7 +56,8 @@ class ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea
         'Tuupola\\Middleware\\' => 
         array (
             0 => __DIR__ . '/..' . '/tuupola/slim-jwt-auth/src',
-            1 => __DIR__ . '/..' . '/tuupola/callable-handler/src',
+            1 => __DIR__ . '/..' . '/tuupola/slim-basic-auth/src',
+            2 => __DIR__ . '/..' . '/tuupola/callable-handler/src',
         ),
         'Tuupola\\Http\\Factory\\' => 
         array (
@@ -126,6 +127,10 @@ class ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea
         ),
     );
 
+    public static $fallbackDirsPsr4 = array (
+        0 => __DIR__ . '/..' . '/bryanjhv/slim-session/src',
+    );
+
     public static $classMap = array (
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
@@ -140,6 +145,7 @@ class ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea::$prefixDirsPsr4;
+            $loader->fallbackDirsPsr4 = ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea::$fallbackDirsPsr4;
             $loader->classMap = ComposerStaticInita3eb68469c16a3e1ad4d71d31095a4ea::$classMap;
 
         }, null, ClassLoader::class);

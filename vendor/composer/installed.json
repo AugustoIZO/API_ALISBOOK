@@ -1,6 +1,67 @@
 {
     "packages": [
         {
+            "name": "bryanjhv/slim-session",
+            "version": "4.1.2",
+            "version_normalized": "4.1.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bryanjhv/slim-session.git",
+                "reference": "475accbe38622199fa1729f3caf5a38af2cda8a2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bryanjhv/slim-session/zipball/475accbe38622199fa1729f3caf5a38af2cda8a2",
+                "reference": "475accbe38622199fa1729f3caf5a38af2cda8a2",
+                "shasum": ""
+            },
+            "require": {
+                "slim/slim": "^4.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7.0"
+            },
+            "time": "2022-04-13T05:20:56+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Bryan Horna",
+                    "email": "bryanjhv@gmail.com",
+                    "homepage": "https://bryanjhv.github.io",
+                    "role": "developer"
+                }
+            ],
+            "description": "Session middleware and helper for Slim framework 4.",
+            "homepage": "https://github.com/bryanjhv/slim-session",
+            "keywords": [
+                "helper",
+                "middleware",
+                "session",
+                "slim"
+            ],
+            "support": {
+                "issues": "https://github.com/bryanjhv/slim-session/issues",
+                "source": "https://github.com/bryanjhv/slim-session.git"
+            },
+            "funding": [
+                {
+                    "url": "https://paypal.me/bryanjhv",
+                    "type": "custom"
+                }
+            ],
+            "install-path": "../bryanjhv/slim-session"
+        },
+        {
             "name": "fig/http-message-util",
             "version": "1.1.5",
             "version_normalized": "1.1.5.0",
@@ -1291,6 +1352,70 @@
                 }
             ],
             "install-path": "../tuupola/http-factory"
+        },
+        {
+            "name": "tuupola/slim-basic-auth",
+            "version": "3.4.0",
+            "version_normalized": "3.4.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tuupola/slim-basic-auth.git",
+                "reference": "4f3061cd1632a28aa7342495011b3467fe0fe1d1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tuupola/slim-basic-auth/zipball/4f3061cd1632a28aa7342495011b3467fe0fe1d1",
+                "reference": "4f3061cd1632a28aa7342495011b3467fe0fe1d1",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.2|^8.0",
+                "psr/http-message": "^1.0.1|^2.0",
+                "psr/http-server-middleware": "^1.0",
+                "tuupola/callable-handler": "^0.3.0|^0.4.0|^1.0",
+                "tuupola/http-factory": "^0.4.0|^1.0.2"
+            },
+            "require-dev": {
+                "equip/dispatch": "^2.0",
+                "laminas/laminas-diactoros": "^1.3|^2.0|^3.0",
+                "overtrue/phplint": "^3.0|^4.0|^5.0|^6.0",
+                "phpstan/phpstan": "^1.11",
+                "phpunit/phpunit": "^8.5.30|^9.0",
+                "rector/rector": "^0.14.5",
+                "symplify/easy-coding-standard": "^11.1"
+            },
+            "time": "2024-10-01T09:13:06+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Tuupola\\Middleware\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mika Tuupola",
+                    "email": "tuupola@appelsiini.net",
+                    "homepage": "https://appelsiini.net/"
+                }
+            ],
+            "description": "PSR-7 and PSR-15 HTTP Basic Authentication Middleware",
+            "homepage": "https://appelsiini.net/projects/slim-basic-auth",
+            "keywords": [
+                "auth",
+                "middleware",
+                "psr-15",
+                "psr-7"
+            ],
+            "support": {
+                "issues": "https://github.com/tuupola/slim-basic-auth/issues",
+                "source": "https://github.com/tuupola/slim-basic-auth/tree/3.4.0"
+            },
+            "install-path": "../tuupola/slim-basic-auth"
         },
         {
             "name": "tuupola/slim-jwt-auth",

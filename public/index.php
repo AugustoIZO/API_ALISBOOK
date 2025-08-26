@@ -2,8 +2,9 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Factory\AppFactory;
-use Tuupola\Middleware\JwtAuthentication;
-use Firebase\JWT\JWT;
+use Tuupola\Middleware\HttpBasicAuthentication;
+use Slim\Middleware\Session;
+use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 require __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/db.php';
@@ -12,50 +13,75 @@ require_once __DIR__ . '/../src/db.php';
 $app = AppFactory::create();
 $app->addBodyParsingMiddleware();
 
-// Ruta de login para emitir token
+// 1. Autenticación Básica
+
+$app->add(new HttpBasicAuthentication([
+    "path" => "/API_ALISBOOK/public/api/protected",
+    "secure" => false,
+    "users" => [
+        "user" => "password",
+        "augusto" => "izo"
+    ]
+]));
+
+$app->get('/api/protected', function (Request $request, Response $response, $args) {
+    $response->getBody()->write("Ruta protegida accesible");
+    return $response;
+});
+
+
+// 2. Autenticación Basada en Sesiones
+$app->add(new Session([
+    'name' => 'my_session',
+    'autorefresh' => true,
+    'lifetime' => '1 hour',
+]));
+
+// Ruta de login
 $app->post('/login', function (Request $request, Response $response) {
     $data = $request->getParsedBody();
     $username = $data['username'] ?? '';
     $password = $data['password'] ?? '';
 
     if ($username === 'user' && $password === 'password') {
-        $key = "your_secret_key";
-        $payload = [
-            "iss" => "example.com",
-            "aud" => "example.com",
-            "iat" => time(),
-            "nbf" => time(),
-            "exp" => time() + 3600,
-            "data" => [
-                "username" => $username
-            ]
-        ];
-        $token = JWT::encode($payload, $key, 'HS256');
-        $response->getBody()->write(json_encode(["token" => $token]));
+        $_SESSION['user'] = $username;
+        $response->getBody()->write("Inicio de sesión exitoso");
     } else {
         $response->getBody()->write("Credenciales inválidas");
         return $response->withStatus(401);
     }
-    return $response->withHeader('Content-Type', 'application/json');
-});
-
-// Middleware JWT
-$app->add(new JwtAuthentication([
-    "secret" => "your_secret_key",
-    "attribute" => "token",
-    "path" => "/api",
-    "ignore" => ["/login"],
-    "algorithm" => ["HS256"],
-    "decoded" => true
-]));
-
-// Ruta protegida
-$app->get('/api/protected', function (Request $request, Response $response) {
-    $token = $request->getAttribute('token');
-    $username = $token['data']['username'];
-    $response->getBody()->write("Hola, $username");
     return $response;
 });
+
+// Middleware de autenticación
+$authMiddleware = function (Request $request, RequestHandler $handler) {
+    if (!isset($_SESSION['user'])) {
+        $response = new \Slim\Psr7\Response();
+        $response->getBody()->write("No autorizado");
+        return $response->withStatus(401);
+    }
+    return $handler->handle($request);
+};
+
+// Ruta protegida
+$app->get('/protected', function (Request $request, Response $response) {
+    $response->getBody()->write("Ruta protegida: Bienvenido, " . $_SESSION['user']);
+    return $response;
+})->add($authMiddleware);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 $app->get('/productos', function (Request $request, Response $response) use ($pdo) {
     $stmt = $pdo->query("SELECT * FROM PRODUCTOS");
