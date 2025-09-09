@@ -146,7 +146,7 @@
             },
             "time": "2021-11-08T20:18:51+00:00",
             "type": "library",
-            "installation-source": "source",
+            "installation-source": "dist",
             "autoload": {
                 "psr-4": {
                     "Firebase\\JWT\\": "src"

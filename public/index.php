@@ -5,6 +5,9 @@ use Slim\Factory\AppFactory;
 use Tuupola\Middleware\HttpBasicAuthentication;
 use Slim\Middleware\Session;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Tuupola\Middleware\JwtAuthentication;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 require __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/db.php';
@@ -24,7 +27,7 @@ $app->add(new HttpBasicAuthentication([
     ]
 ]));
 
-$app->get('/api/protected', function (Request $request, Response $response, $args) {
+$app->get('/api/protected', function (Request $request, Response $response) {
     $response->getBody()->write("Ruta protegida accesible");
     return $response;
 });
@@ -71,17 +74,123 @@ $app->get('/protected', function (Request $request, Response $response) {
 
 
 
+// 3. Autenticación JWT
+// Ruta de login para emitir token (usando Basic Authentication)
+$app->post('/loginjwt', function (Request $request, Response $response) {
+    $authHeader = $request->getHeaderLine('Authorization');
+    
+    $encoded = substr($authHeader, 6);
+    $decoded = base64_decode($encoded);
+    $credentials = explode(':', $decoded, 2);
+    
+    $username = $credentials[0];
+    $password = $credentials[1];
+
+    if ($username === 'user' && $password === 'password') {
+        $key = "your_secret_key";
+        $payload = [
+            "iss" => "example.com",
+            "aud" => "example.com",
+            "iat" => time(),
+            "nbf" => time(),
+            "exp" => time() + 3600,
+            "data" => [
+                "username" => $username
+            ]
+        ];
+        $token = JWT::encode($payload, $key, 'HS256');
+        $response->getBody()->write(json_encode(["token" => $token]));
+    } else {
+        $response->getBody()->write(json_encode(["error" => "Credenciales inválidas"]));
+        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+    }
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
+// Middleware JWT
+$app->add(new JwtAuthentication([
+    "secret" => "your_secret_key",
+    "secure" => false,
+    "attribute" => "token",
+    "path" => "/API_ALISBOOK/public/api/protectedjwt",
+    "ignore" => ["/login"],
+    "algorithm" => ["HS256"]
+]));
+
+// Ruta protegida
+$app->get('/api/protectedjwt', function (Request $request, Response $response) {
+    $token = $request->getAttribute('token');
+    $username = $token['data']->username; 
+    $response->getBody()->write(json_encode([
+        "mensaje" => "Acceso autorizado con JWT",
+        "usuario" => $username,
+    ]));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
+//la clase del middleware para jwt
+//autorizacion
+class AuthMiddleware {
+    public function __invoke(Request $request, RequestHandler $handler): Response {
+        $authHeader = $request->getHeaderLine('Authorization');
+        if (!$authHeader) {
+            $response = new \Slim\Psr7\Response();
+            $response->getBody()->write(json_encode(['error' => 'Token requerido']));
+            return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+        }
+
+        $token = str_replace('Bearer ', '', $authHeader);
+
+        try {
+            $decoded = JWT::decode($token, new Key('your_secret_key', 'HS256'));
+            $request = $request->withAttribute('user', (array)$decoded);
+        } catch (\Exception $e) {
+            $response = new \Slim\Psr7\Response();
+            $response->getBody()->write(json_encode(['error' => 'Token inválido']));
+            return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+        }
+
+        return $handler->handle($request);
+    }
+}
+
+//los roles del middleware
+class RoleMiddleware {
+    private array $allowedRoles;
+
+    public function __construct(array $allowedRoles) {
+        $this->allowedRoles = $allowedRoles;
+    }
+
+    public function __invoke(Request $request, RequestHandler $handler): Response {
+        $user = $request->getAttribute('user');
+        if (!$user || !in_array($user['role'], $this->allowedRoles)) {
+            $response = new \Slim\Psr7\Response();
+            $response->getBody()->write(json_encode(['error' => 'Acceso denegado']));
+            return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+        }
+        return $handler->handle($request);
+    }
+}
+
+
+// Ruta pública
+$app->get('/public', function ($req, $res) {
+    $res->getBody()->write("Acceso libre");
+    return $res;
+});
+
+// Ruta protegida: solo administradores
+$app->get('/admin', function ($req, $res) {
+    $user = $req->getAttribute('user');
+    $res->getBody()->write("Hola Admin, {$user['name']}");
+    return $res;
+})->add(new RoleMiddleware(['admin']))
+  ->add(new AuthMiddleware());
 
 
 
-
-
-
-
-
-
-
-
+//RUTAASSS
 
 $app->get('/productos', function (Request $request, Response $response) use ($pdo) {
     $stmt = $pdo->query("SELECT * FROM PRODUCTOS");
@@ -89,7 +198,7 @@ $app->get('/productos', function (Request $request, Response $response) use ($pd
 
     $response->getBody()->write(json_encode($productos));
     return $response->withHeader('Content-Type', 'application/json');
-});
+})->add(new AuthMiddleware());
 
 
 $app->post('/productos', function (Request $request, Response $response) use ($pdo) {
@@ -145,7 +254,7 @@ $app->post('/productos', function (Request $request, Response $response) use ($p
         $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
         return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
-});
+})->add(new AuthMiddleware());
 
 $app->delete('/productos/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
 $id = $args['id'];
@@ -184,7 +293,7 @@ try {
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
 
-});
+})->add(new AuthMiddleware());
 
 $app->get('/categorias', function (Request $request, Response $response) use ($pdo){
     $stmt = $pdo->query("SELECT * FROM CATEGORIAS");
@@ -193,7 +302,7 @@ $app->get('/categorias', function (Request $request, Response $response) use ($p
     $response->getBody()->write(json_encode($categorias));
     return $response->withHeader('Content-Type', 'application/json');
 
-});
+})->add(new AuthMiddleware());
 
 $app->post('/categorias', function (Request $request, Response $response) use ($pdo){
 
@@ -229,7 +338,7 @@ $app->post('/categorias', function (Request $request, Response $response) use ($
         $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
         return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
-});
+})->add(new AuthMiddleware());
 
 $app->delete('/categorias/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
 $id = $args['id'];
@@ -267,7 +376,7 @@ try {
     ]));
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
-});
+})->add(new AuthMiddleware());
 
 
 $app->setBasePath('/API_ALISBOOK/public');

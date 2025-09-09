@@ -3,7 +3,7 @@
         'name' => 'augusto/api_alisbook',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '547235992022a2d8171f90ae4ced0147f923ec43',
+        'reference' => '855f5e4b6a5f38100e801191252ec5ebc93648b6',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'augusto/api_alisbook' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '547235992022a2d8171f90ae4ced0147f923ec43',
+            'reference' => '855f5e4b6a5f38100e801191252ec5ebc93648b6',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
