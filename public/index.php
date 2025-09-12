@@ -75,7 +75,6 @@ $app->get('/protected', function (Request $request, Response $response) {
 
 
 // 3. Autenticación JWT
-// Ruta de login para emitir token (usando Basic Authentication)
 $app->post('/loginjwt', function (Request $request, Response $response) {
     $authHeader = $request->getHeaderLine('Authorization');
     
@@ -122,7 +121,6 @@ $app->get('/api/protectedjwt', function (Request $request, Response $response) {
     $token = $request->getAttribute('token');
     $username = $token['data']->username; 
     $response->getBody()->write(json_encode([
-        "mensaje" => "Acceso autorizado con JWT",
         "usuario" => $username,
     ]));
     return $response->withHeader('Content-Type', 'application/json');
@@ -191,7 +189,6 @@ $app->get('/admin', function ($req, $res) {
 
 
 //RUTAASSS
-
 $app->get('/productos', function (Request $request, Response $response) use ($pdo) {
     $stmt = $pdo->query("SELECT * FROM PRODUCTOS");
     $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
