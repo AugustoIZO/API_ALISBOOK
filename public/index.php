@@ -14,8 +14,6 @@ require_once __DIR__ . '/../src/db.php';
 
 
 $app = AppFactory::create();
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
 $app->addBodyParsingMiddleware();
 
 // 1. Autenticación Básica
@@ -431,11 +429,6 @@ try {
 }
 })->add(new AuthMiddleware());
 
-
-
-//VARIABLES DE ENTORNO
-$dbUser = $_ENV['user'];
-$dbPass = $_ENV['pass'];
 
 
 
