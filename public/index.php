@@ -14,6 +14,8 @@ require_once __DIR__ . '/../src/db.php';
 
 
 $app = AppFactory::create();
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 $app->addBodyParsingMiddleware();
 
 // 1. Autenticación Básica
@@ -75,34 +77,77 @@ $app->get('/protected', function (Request $request, Response $response) {
 
 
 // 3. Autenticación JWT
-$app->post('/loginjwt', function (Request $request, Response $response) {
+$app->post('/loginjwt', function (Request $request, Response $response) use ($pdo) {
     $authHeader = $request->getHeaderLine('Authorization');
+    
+    // Validar que sea Basic Auth
+    if (!$authHeader || strpos($authHeader, 'Basic ') !== 0) {
+        $response->getBody()->write(json_encode(["error" => "Authorization header requerido"]));
+        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+    }
     
     $encoded = substr($authHeader, 6);
     $decoded = base64_decode($encoded);
     $credentials = explode(':', $decoded, 2);
     
+    // Validar formato de credenciales
+    if (count($credentials) !== 2) {
+        $response->getBody()->write(json_encode(["error" => "Formato de credenciales inválido"]));
+        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+    }
+    
     $username = $credentials[0];
     $password = $credentials[1];
 
-    if ($username === 'user' && $password === 'password') {
-        $key = "your_secret_key";
-        $payload = [
-            "iss" => "example.com",
-            "aud" => "example.com",
-            "iat" => time(),
-            "nbf" => time(),
-            "exp" => time() + 3600,
-            "data" => [
-                "username" => $username
-            ]
-        ];
-        $token = JWT::encode($payload, $key, 'HS256');
-        $response->getBody()->write(json_encode(["token" => $token]));
-    } else {
-        $response->getBody()->write(json_encode(["error" => "Credenciales inválidas"]));
-        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+    try {
+        // Buscar usuario por documento o correo
+        $stmt = $pdo->prepare("
+            SELECT u.IDUSUARIO, u.DOCUMENTO, u.NOMBRECOMPLETO, u.CORREO, u.CLAVE, u.ESTADO, u.IDROL, r.DESCRIPCION as ROL
+            FROM USUARIOS u 
+            LEFT JOIN ROLES r ON u.IDROL = r.IDROL 
+            WHERE (u.DOCUMENTO = :username OR u.CORREO = :username) AND u.ESTADO = 'Activo'
+        ");
+        $stmt->execute([':username' => $username]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Validar usuario y contraseña
+        if ($usuario && $usuario['CLAVE'] === $password) {
+            $key = "your_secret_key";
+            $payload = [
+                "iss" => "example.com",
+                "aud" => "example.com",
+                "iat" => time(),
+                "nbf" => time(),
+                "exp" => time() + 3600,
+                "data" => [
+                    "id" => $usuario['IDUSUARIO'],
+                    "username" => $usuario['DOCUMENTO'],
+                    "nombre" => $usuario['NOMBRECOMPLETO'],
+                    "correo" => $usuario['CORREO'],
+                    "rol" => $usuario['ROL'],
+                    "idrol" => $usuario['IDROL']
+                ]
+            ];
+            $token = JWT::encode($payload, $key, 'HS256');
+            
+            $response->getBody()->write(json_encode([
+                "token" => $token,
+                "usuario" => [
+                    "id" => $usuario['IDUSUARIO'],
+                    "nombre" => $usuario['NOMBRECOMPLETO'],
+                    "correo" => $usuario['CORREO'],
+                    "rol" => $usuario['ROL']
+                ]
+            ]));
+        } else {
+            $response->getBody()->write(json_encode(["error" => "Credenciales inválidas"]));
+            return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+        }
+    } catch (PDOException $e) {
+        $response->getBody()->write(json_encode(["error" => "Error de base de datos"]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
+    
     return $response->withHeader('Content-Type', 'application/json');
 });
 
@@ -119,9 +164,20 @@ $app->add(new JwtAuthentication([
 // Ruta protegida
 $app->get('/api/protectedjwt', function (Request $request, Response $response) {
     $token = $request->getAttribute('token');
-    $username = $token['data']->username; 
+    
+    // Estructura: $token es array, $token['data'] es stdClass
+    $userData = $token['data'];
+    
     $response->getBody()->write(json_encode([
-        "usuario" => $username,
+        "mensaje" => "Acceso autorizado con JWT",
+        "usuario" => [
+            "id" => $userData->id,
+            "username" => $userData->username,
+            "nombre" => $userData->nombre,
+            "correo" => $userData->correo,
+            "rol" => $userData->rol
+        ],
+        "timestamp" => date('Y-m-d H:i:s')
     ]));
     return $response->withHeader('Content-Type', 'application/json');
 });
@@ -374,6 +430,14 @@ try {
     return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
 }
 })->add(new AuthMiddleware());
+
+
+
+//VARIABLES DE ENTORNO
+$dbUser = $_ENV['user'];
+$dbPass = $_ENV['pass'];
+
+
 
 
 $app->setBasePath('/API_ALISBOOK/public');
