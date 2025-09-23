@@ -12,12 +12,10 @@ use Firebase\JWT\Key;
 require __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/db.php';
 
-
 $app = AppFactory::create();
 $app->addBodyParsingMiddleware();
 
 // 1. Autenticación Básica
-
 $app->add(new HttpBasicAuthentication([
     "path" => "/API_ALISBOOK/public/api/protected",
     "secure" => false,
@@ -32,7 +30,6 @@ $app->get('/api/protected', function (Request $request, Response $response) {
     return $response;
 });
 
-
 // 2. Autenticación Basada en Sesiones
 $app->add(new Session([
     'name' => 'my_session',
@@ -40,7 +37,7 @@ $app->add(new Session([
     'lifetime' => '1 hour',
 ]));
 
-// Ruta de login
+// Ruta de login con sesiones
 $app->post('/login', function (Request $request, Response $response) {
     $data = $request->getParsedBody();
     $username = $data['username'] ?? '';
@@ -56,7 +53,7 @@ $app->post('/login', function (Request $request, Response $response) {
     return $response;
 });
 
-// Middleware de autenticación
+// Middleware de autenticación por sesión
 $authMiddleware = function (Request $request, RequestHandler $handler) {
     if (!isset($_SESSION['user'])) {
         $response = new \Slim\Psr7\Response();
@@ -66,39 +63,34 @@ $authMiddleware = function (Request $request, RequestHandler $handler) {
     return $handler->handle($request);
 };
 
-// Ruta protegida
+// Ruta protegida por sesión
 $app->get('/protected', function (Request $request, Response $response) {
     $response->getBody()->write("Ruta protegida: Bienvenido, " . $_SESSION['user']);
     return $response;
 })->add($authMiddleware);
 
-
-
 // 3. Autenticación JWT
 $app->post('/loginjwt', function (Request $request, Response $response) use ($pdo) {
     $authHeader = $request->getHeaderLine('Authorization');
-    
-    // Validar que sea Basic Auth
+
     if (!$authHeader || strpos($authHeader, 'Basic ') !== 0) {
         $response->getBody()->write(json_encode(["error" => "Authorization header requerido"]));
         return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
     }
-    
+
     $encoded = substr($authHeader, 6);
     $decoded = base64_decode($encoded);
     $credentials = explode(':', $decoded, 2);
-    
-    // Validar formato de credenciales
+
     if (count($credentials) !== 2) {
         $response->getBody()->write(json_encode(["error" => "Formato de credenciales inválido"]));
         return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
     }
-    
+
     $username = $credentials[0];
     $password = $credentials[1];
 
     try {
-        // Buscar usuario por documento o correo
         $stmt = $pdo->prepare("
             SELECT u.IDUSUARIO, u.DOCUMENTO, u.NOMBRECOMPLETO, u.CORREO, u.CLAVE, u.ESTADO, u.IDROL, r.DESCRIPCION as ROL
             FROM USUARIOS u 
@@ -108,7 +100,6 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
         $stmt->execute([':username' => $username]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Validar usuario y contraseña
         if ($usuario && $usuario['CLAVE'] === $password) {
             $key = "your_secret_key";
             $payload = [
@@ -122,19 +113,19 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
                     "username" => $usuario['DOCUMENTO'],
                     "nombre" => $usuario['NOMBRECOMPLETO'],
                     "correo" => $usuario['CORREO'],
-                    "rol" => $usuario['ROL'],
+                    "role" => $usuario['ROL'],   // ✅ cambiado a role
                     "idrol" => $usuario['IDROL']
                 ]
             ];
             $token = JWT::encode($payload, $key, 'HS256');
-            
+
             $response->getBody()->write(json_encode([
                 "token" => $token,
                 "usuario" => [
                     "id" => $usuario['IDUSUARIO'],
                     "nombre" => $usuario['NOMBRECOMPLETO'],
                     "correo" => $usuario['CORREO'],
-                    "rol" => $usuario['ROL']
+                    "role" => $usuario['ROL']   // ✅ cambiado a role
                 ]
             ]));
         } else {
@@ -145,7 +136,7 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
         $response->getBody()->write(json_encode(["error" => "Error de base de datos"]));
         return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
-    
+
     return $response->withHeader('Content-Type', 'application/json');
 });
 
@@ -159,13 +150,11 @@ $app->add(new JwtAuthentication([
     "algorithm" => ["HS256"]
 ]));
 
-// Ruta protegida
+// Ruta protegida con JWT
 $app->get('/api/protectedjwt', function (Request $request, Response $response) {
     $token = $request->getAttribute('token');
-    
-    // Estructura: $token es array, $token['data'] es stdClass
     $userData = $token['data'];
-    
+
     $response->getBody()->write(json_encode([
         "mensaje" => "Acceso autorizado con JWT",
         "usuario" => [
@@ -173,15 +162,14 @@ $app->get('/api/protectedjwt', function (Request $request, Response $response) {
             "username" => $userData->username,
             "nombre" => $userData->nombre,
             "correo" => $userData->correo,
-            "rol" => $userData->rol
+            "role" => $userData->role
         ],
         "timestamp" => date('Y-m-d H:i:s')
     ]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-//la clase del middleware para jwt
-//autorizacion
+// Middleware Auth
 class AuthMiddleware {
     public function __invoke(Request $request, RequestHandler $handler): Response {
         $authHeader = $request->getHeaderLine('Authorization');
@@ -195,7 +183,7 @@ class AuthMiddleware {
 
         try {
             $decoded = JWT::decode($token, new Key('your_secret_key', 'HS256'));
-            $request = $request->withAttribute('user', (array)$decoded);
+            $request = $request->withAttribute('user', (array)$decoded->data); // ✅ guardamos solo data
         } catch (\Exception $e) {
             $response = new \Slim\Psr7\Response();
             $response->getBody()->write(json_encode(['error' => 'Token inválido']));
@@ -206,7 +194,7 @@ class AuthMiddleware {
     }
 }
 
-//los roles del middleware
+// Middleware Roles
 class RoleMiddleware {
     private array $allowedRoles;
 
@@ -225,7 +213,6 @@ class RoleMiddleware {
     }
 }
 
-
 // Ruta pública
 $app->get('/public', function ($req, $res) {
     $res->getBody()->write("Acceso libre");
@@ -235,203 +222,17 @@ $app->get('/public', function ($req, $res) {
 // Ruta protegida: solo administradores
 $app->get('/admin', function ($req, $res) {
     $user = $req->getAttribute('user');
-    $res->getBody()->write("Hola Admin, {$user['name']}");
+    $res->getBody()->write("Hola Admin, {$user['nombre']}");
     return $res;
 })->add(new RoleMiddleware(['admin']))
   ->add(new AuthMiddleware());
 
+// VARIABLES DE ENTORNO
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv->load();
 
-
-//RUTAASSS
-$app->get('/productos', function (Request $request, Response $response) use ($pdo) {
-    $stmt = $pdo->query("SELECT * FROM PRODUCTOS");
-    $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $response->getBody()->write(json_encode($productos));
-    return $response->withHeader('Content-Type', 'application/json');
-})->add(new AuthMiddleware());
-
-
-$app->post('/productos', function (Request $request, Response $response) use ($pdo) {
-
-    $data = $request->getParsedBody();
-
-    $codigo        = $data['codigo'] ?? null;
-    $nombre        = $data['nombre'] ?? null;
-    $descripcion   = $data['descripcion'] ?? null;
-    $stock         = $data['stock'] ?? 0;
-    $precioCompra  = $data['preciocompra'] ?? 0;
-    $precioVenta   = $data['precioventa'] ?? 0;
-    $estado        = $data['estado'] ?? 'Activo';
-    $fechaRegistro = $data['fecharegistro'] ?? date('Y-m-d H:i:s');
-    $idCategoria   = $data['idcategoria'] ?? null;
-
-    // Validación mínima
-    if (!$codigo || !$nombre || !$idCategoria) {
-        $response->getBody()->write(json_encode([
-            'error' => 'Faltan campos requeridos: codigo, nombre o idcategoria'
-        ]));
-        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-    }
-
-    try {
-        $sql = "INSERT INTO PRODUCTOS 
-                (CODIGO, NOMBRE, DESCRIPCION, STOCK, PRECIOCOMPRA, PRECIOVENTA, ESTADO, FECHAREGISTRO, IDCATEGORIA)
-                VALUES 
-                (:codigo, :nombre, :descripcion, :stock, :preciocompra, :precioventa, :estado, :fecharegistro, :idcategoria)";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':codigo'        => $codigo,
-            ':nombre'        => $nombre,
-            ':descripcion'   => $descripcion,
-            ':stock'         => $stock,
-            ':preciocompra'  => $precioCompra,
-            ':precioventa'   => $precioVenta,
-            ':estado'        => $estado,
-            ':fecharegistro' => $fechaRegistro,
-            ':idcategoria'   => $idCategoria
-        ]);
-
-        $nuevoId = $pdo->lastInsertId();
-
-        $response->getBody()->write(json_encode([
-            'mensaje' => 'Producto creado correctamente',
-            'idproducto' => $nuevoId
-        ]));
-        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
-
-    } catch (PDOException $e) {
-        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
-        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-    }
-})->add(new AuthMiddleware());
-
-$app->delete('/productos/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
-$id = $args['id'];
-
-if (!is_numeric($id)) {
-    $response->getBody()->write(json_encode([
-        'error' => 'Id invalido'
-    ]));
-    return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-}
-
-try {
-    $stmt = $pdo->prepare("SELECT * FROM PRODUCTOS WHERE idproducto = :id");
-    $stmt->execute([':id' => $id]);
-    $producto = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$producto) {
-        $response->getBody()->write(json_encode([
-            'error' => 'Producto no encontrado'
-        ]));
-        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
-    }
-    
-    $stmt = $pdo->prepare("DELETE FROM PRODUCTOS WHERE idproducto = :id");
-    $stmt->execute([':id' => $id]);
-
-    $response->getBody()->write(json_encode([
-        'mensaje' => 'Producto eliminado correctamente'
-    ]));
-    return $response->withHeader('Content-Type', 'application/json');
-
-} catch (PDOException $e) {
-    $response->getBody()->write(json_encode([
-        'error' => $e->getMessage()
-    ]));
-    return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-}
-
-})->add(new AuthMiddleware());
-
-$app->get('/categorias', function (Request $request, Response $response) use ($pdo){
-    $stmt = $pdo->query("SELECT * FROM CATEGORIAS");
-    $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    $response->getBody()->write(json_encode($categorias));
-    return $response->withHeader('Content-Type', 'application/json');
-
-})->add(new AuthMiddleware());
-
-$app->post('/categorias', function (Request $request, Response $response) use ($pdo){
-
-    $data = $request->getParsedBody();
-
-    $idCategoria   = $data['idcategoria'] ?? null;
-    $descripcion   = $data['descripcion'] ?? null;
-    $estado        = $data['estado'] ?? 'Activo';
-    $fechaRegistro = $data['fecharegistro'] ?? date('Y-m-d H:i:s');
-
-    try {
-        $sql = "INSERT INTO CATEGORIAS
-        (IDCATEGORIA, DESCRIPCION, ESTADO, FECHAREGISTRO)
-        VALUES
-        (:idcategoria, :descripcion, :estado, :fecharegistro)";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':idcategoria'   => $idCategoria,
-            ':descripcion'   => $descripcion,
-            ':estado'        => $estado,
-            ':fecharegistro' => $fechaRegistro
-        ]);
-        $nuevoId = $pdo->lastInsertId();
-
-        $response->getBody()->write(json_encode([
-            'mensaje' => 'Categoria creada correctamente',
-            'idcategoria' => $nuevoId
-        ]));
-        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
-
-    } catch (PDOException $e) {
-        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
-        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-    }
-})->add(new AuthMiddleware());
-
-$app->delete('/categorias/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
-$id = $args['id'];
-
-if (!is_numeric($id)) {
-    $response->getBody()->write(json_encode([
-        'error' => 'Id invalido'
-    ]));
-    return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-}
-
-try {
-    $stmt = $pdo->prepare("SELECT * FROM CATEGORIAS WHERE idcategoria = :id");
-    $stmt->execute([':id' => $id]);
-    $categoria = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$categoria) {
-        $response->getBody()->write(json_encode([
-            'error' => 'Categoria no encontrada'
-        ]));
-        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
-    }
-    
-    $stmt = $pdo->prepare("DELETE FROM CATEGORIAS WHERE idcategoria = :id");
-    $stmt->execute([':id' => $id]);
-
-    $response->getBody()->write(json_encode([
-        'mensaje' => 'Categoria eliminada correctamente'
-    ]));
-    return $response->withHeader('Content-Type', 'application/json');
-
-} catch (PDOException $e) {
-    $response->getBody()->write(json_encode([
-        'error' => $e->getMessage()
-    ]));
-    return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-}
-})->add(new AuthMiddleware());
-
-
-
-
+$dbUser = $_ENV['DB_USER'];
+$dbPass = $_ENV['DB_PASS'];
 
 $app->setBasePath('/API_ALISBOOK/public');
 $app->run();
