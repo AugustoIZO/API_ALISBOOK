@@ -101,7 +101,7 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($usuario && $usuario['CLAVE'] === $password) {
-            $key = "your_secret_key";
+            $key = $_ENV['JWT_SECRET'];
             $payload = [
                 "iss" => "example.com",
                 "aud" => "example.com",
@@ -113,7 +113,7 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
                     "username" => $usuario['DOCUMENTO'],
                     "nombre" => $usuario['NOMBRECOMPLETO'],
                     "correo" => $usuario['CORREO'],
-                    "role" => $usuario['ROL'],   // ✅ cambiado a role
+                    "role" => $usuario['ROL'], 
                     "idrol" => $usuario['IDROL']
                 ]
             ];
@@ -125,7 +125,7 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
                     "id" => $usuario['IDUSUARIO'],
                     "nombre" => $usuario['NOMBRECOMPLETO'],
                     "correo" => $usuario['CORREO'],
-                    "role" => $usuario['ROL']   // ✅ cambiado a role
+                    "role" => $usuario['ROL']
                 ]
             ]));
         } else {
@@ -142,13 +142,14 @@ $app->post('/loginjwt', function (Request $request, Response $response) use ($pd
 
 // Middleware JWT
 $app->add(new JwtAuthentication([
-    "secret" => "your_secret_key",
+    "secret" => $_ENV['JWT_SECRET'],
     "secure" => false,
     "attribute" => "token",
     "path" => "/API_ALISBOOK/public/api/protectedjwt",
     "ignore" => ["/login"],
     "algorithm" => ["HS256"]
 ]));
+
 
 // Ruta protegida con JWT
 $app->get('/api/protectedjwt', function (Request $request, Response $response) {
@@ -164,7 +165,6 @@ $app->get('/api/protectedjwt', function (Request $request, Response $response) {
             "correo" => $userData->correo,
             "role" => $userData->role
         ],
-        "timestamp" => date('Y-m-d H:i:s')
     ]));
     return $response->withHeader('Content-Type', 'application/json');
 });
@@ -182,8 +182,8 @@ class AuthMiddleware {
         $token = str_replace('Bearer ', '', $authHeader);
 
         try {
-            $decoded = JWT::decode($token, new Key('your_secret_key', 'HS256'));
-            $request = $request->withAttribute('user', (array)$decoded->data); // ✅ guardamos solo data
+            $decoded = JWT::decode($token, new Key($_ENV['JWT_SECRET'], 'HS256'));
+            $request = $request->withAttribute('user', (array)$decoded->data);
         } catch (\Exception $e) {
             $response = new \Slim\Psr7\Response();
             $response->getBody()->write(json_encode(['error' => 'Token inválido']));
@@ -222,9 +222,9 @@ $app->get('/public', function ($req, $res) {
 // Ruta protegida: solo administradores
 $app->get('/admin', function ($req, $res) {
     $user = $req->getAttribute('user');
-    $res->getBody()->write("Hola Admin, {$user['nombre']}");
+    $res->getBody()->write("Hola {$user['nombre']}");
     return $res;
-})->add(new RoleMiddleware(['admin']))
+})->add(new RoleMiddleware(['Administrador']))
   ->add(new AuthMiddleware());
 
 // VARIABLES DE ENTORNO
